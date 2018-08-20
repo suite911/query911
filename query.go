@@ -27,21 +27,19 @@ type Query struct {
 }
 
 // Constructor
-func New(db *sql.DB) (query *Query) {
-	query = new(Query)
-	query.Init(db)
-	return
+func New(db *sql.DB) *Query {
+	return new(Query).Init(db)
 }
 
-// Constructor
-func NewByValue(db *sql.DB) (query Query) {
-	query.Init(db)
-	return
+// Initialize your own Query
+func (q *Query) Init(db *sql.DB) *Query {
+	q.DB = db
+	return q
 }
 
 // Begin a transaction
 func (query *Query) Begin() {
-	if query.Ok() {
+	if query.OK() {
 		var err error
 		query.Tx, err = query.DB.Begin()
 		query.logMethod("DB.Begin", err)
@@ -64,7 +62,7 @@ func (query *Query) Close() {
 
 // Try to commit pending changes; roll back if anything goes wrong
 func (query *Query) CommitOrRollback() (ok bool) {
-	if query.Ok() && query.okToCommit {
+	if query.OK() && query.okToCommit {
 		err := query.Tx.Commit()
 		query.logMethod("Tx.Commit", err)
 		return err == nil
@@ -76,7 +74,7 @@ func (query *Query) CommitOrRollback() (ok bool) {
 
 // Essentially calls query.Prepare and query.ExecPrepared
 func (query *Query) Exec(args ...interface{}) {
-	if query.Ok() {
+	if query.OK() {
 		query.Prepare()
 		query.ExecPrepared(args...)
 	}
@@ -84,7 +82,7 @@ func (query *Query) Exec(args ...interface{}) {
 
 // Call query.Prepare first
 func (query *Query) ExecPrepared(args ...interface{}) {
-	if query.Ok() {
+	if query.OK() {
 		var err error
 		query.Result, err = query.Stmt.Exec(args...)
 		query.logMethod("Stmt.Exec", err)
@@ -94,7 +92,7 @@ func (query *Query) ExecPrepared(args ...interface{}) {
 // Get the error message in a format suitable for use with the Discord API
 // It probably looks good on the console too
 func (query *Query) GetErrorDiscord() error {
-	if query.Ok() {
+	if query.OK() {
 		return nil
 	}
 	text := "SQL `QueryError`:\n```sql\n"
@@ -112,12 +110,6 @@ func (query *Query) GetErrorDiscord() error {
 		text += "\u200b\n```"
 	}
 	return errors.New(text)
-}
-
-// Initialize your own Query
-func (query *Query) Init(db *sql.DB) {
-	query.DB = db
-	return
 }
 
 // Get the last error to occur
@@ -150,12 +142,12 @@ func (query *Query) LogNow() {
 
 // Calls query.Rows.Next and returns if there are any more rows
 func (query *Query) NextKeepOpen() (hasNext bool) {
-	return query.Ok() && query.Rows.Next()
+	return query.OK() && query.Rows.Next()
 }
 
 // Like query.NextKeepOpen, but call query.Rows.Close if there are no more rows
 func (query *Query) NextOrClose() (hasNext bool) {
-	hasNext = query.Ok() && query.Rows.Next()
+	hasNext = query.OK() && query.Rows.Next()
 	if !hasNext {
 		query.Close()
 	}
@@ -163,7 +155,7 @@ func (query *Query) NextOrClose() (hasNext bool) {
 }
 
 // Whether (false) or not (true) there was an error
-func (query *Query) Ok() bool {
+func (query *Query) OK() bool {
 	return len(query.Errors) < 1
 }
 
@@ -179,7 +171,7 @@ func (query *Query) PanicErrors() {
 
 // For use with query.ExecPrepared or query.QueryPrepared
 func (query *Query) Prepare() {
-	if query.Ok() {
+	if query.OK() {
 		query.logSQL()
 		var err error
 		if query.Tx != nil {
@@ -194,7 +186,7 @@ func (query *Query) Prepare() {
 
 // Essentially calls query.Prepare and query.QueryPrepared
 func (query *Query) Query(args ...interface{}) {
-	if query.Ok() {
+	if query.OK() {
 		query.Prepare()
 		query.QueryPrepared(args...)
 	}
@@ -202,17 +194,17 @@ func (query *Query) Query(args ...interface{}) {
 
 // Call query.Prepare first
 func (query *Query) QueryPrepared(args ...interface{}) {
-	if query.Ok() {
+	if query.OK() {
 		var err error
 		query.Rows, err = query.Stmt.Query(args...)
 		query.logMethod("Stmt.Query", err)
-		query.isOpen = query.Ok()
+		query.isOpen = query.OK()
 	}
 }
 
 // Calls query.Rows.Scan and then query.Rows.Close
 func (query *Query) ScanClose(args ...interface{}) {
-	if query.Ok() {
+	if query.OK() {
 		query.logMethod("Rows.Scan", query.Rows.Scan(args...))
 		query.Close()
 	}
@@ -220,14 +212,14 @@ func (query *Query) ScanClose(args ...interface{}) {
 
 // Like query.ScanKeepOpen, but does not call query.Rows.Close afterward
 func (query *Query) ScanKeepOpen(args ...interface{}) {
-	if query.Ok() {
+	if query.OK() {
 		query.logMethod("Rows.Scan", query.Rows.Scan(args...))
 	}
 }
 
 func (query *Query) logMethod(method string, err error) {
 	if err != nil || query.verbose() {
-		wasOK := query.Ok()
+		wasOK := query.OK()
 		if err != nil {
 			query.Errors = append(query.Errors, err)
 		}
