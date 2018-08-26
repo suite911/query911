@@ -197,6 +197,7 @@ func (query *Query) ErrorString() string {
 		result += est
 		result += "\n... EARLIEST STACK TRACE ..."
 	}
+	return result
 }
 
 // Essentially calls query.Prepare and query.ExecPrepared
