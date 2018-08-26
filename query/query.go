@@ -87,19 +87,22 @@ func (query *Query) ErrorPush(err error, msg ...interface{}) {
 	}
 }
 
-// Return the error stack in a format more suitable for printing
-func (query *Query) ErrorStack() (string, errors.StackTrace) {
-	var earliestStackTrace errors.StackTrace
+// Return the error stack in a format suitable for printing or machine parsing
+func (query *Query) ErrorStack() (logText, errorStack, earliestStackTrace string) {
+	var est errors.StackTrace
 	var errors string
 	e := query.Error
 	for {
 		if len(errors) > 0 {
 			errors += "\n"
 		}
-		errors += e.Error()
-		if st, ok := e.(errors.StackTracer); ok {
-			earliestStackTrace = st.StackTrace()
+		if st, ok := e.(interface{StackTrace() errors.StackTrace}); ok {
+			est = st.StackTrace()
+			errors += "*"
+		} else {
+			errors += " "
 		}
+		errors += e.Error()
 		if c, ok := e.(errors.Causer); ok {
 			if e = c.Cause(); e != nil {
 				continue
@@ -107,7 +110,35 @@ func (query *Query) ErrorStack() (string, errors.StackTrace) {
 		}
 		break
 	}
-	return errors, earliestStackTrace
+	var estText string
+	for _, f := range est {
+		if len(estText) > 0 {
+			estText += "\n"
+		}
+		estText += fmt.Sprintf("%s:%d %n", f, f, f)
+	}
+	return query.LogText, errors, estText
+}
+
+// Return the error stack in a format ready for direct printing, even from a log.Logger
+func (query *Query) ErrorString() string {
+	lt, es, est := query.ErrorStack()
+	result := "Query Error"
+	if len(lt) > 0 {
+		result += "\n=== LOG TEXT ===\n"
+		result += lt
+		result += "\n... LOG TEXT ..."
+	}
+	if len(es) > 0 {
+		result += "\n=== ERROR STACK ===\n"
+		result += es
+		result += "\n... ERROR STACK ..."
+	}
+	if len(est) > 0 {
+		result += "\n=== EARLIEST STACK TRACE ===\n"
+		result += est
+		result += "\n... EARLIEST STACK TRACE ..."
+	}
 }
 
 // Essentially calls query.Prepare and query.ExecPrepared
@@ -150,23 +181,10 @@ func (query *Query) GetErrorDiscord() error {
 	return errors.New(text)
 }
 
-// Get the last error to occur
-func (query *Query) LastError() (err error) {
-	count := len(query.Errors)
-	if count > 0 {
-		err = query.Errors[count-1]
-		if err == nil {
-			panic(nil)
-		}
-		return
-	}
-	return nil
-}
-
-// Log the accumulated log text to the logger now if there was an error and return the last error
+// Log the accumulated log text to the logger now if there was an error and return the error
 // Example: if nil != query.LogErrors() { return }
-func (query *Query) LogErrors() (err error) {
-	err = query.LastError()
+func (query *Query) LogErrors() error {
+	err := query.LastError()
 	if err != nil {
 		query.LogNow()
 	}
@@ -175,7 +193,10 @@ func (query *Query) LogErrors() (err error) {
 
 // Log the accumulated log text to the logger now
 func (query *Query) LogNow() {
-	query.logPrintln(query.LogText)
+	s := query.ErrorString()
+	if len(s) > 0 {
+		query.logPrintln(s)
+	}
 }
 
 // Calls query.Rows.Next and returns if there are any more rows
