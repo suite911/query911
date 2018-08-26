@@ -96,7 +96,7 @@ func (query *Query) ErrorDiscordMessage() string {
 	if query.OK() {
 		return text
 	}
-	text := "SQL `QueryError`:\n```sql\n"
+	text = "SQL `QueryError`:\n```sql\n"
 	text += query.SQL
 	text += "\u200b\n```"
 	errmsg := query.ErrorCause().Error()
