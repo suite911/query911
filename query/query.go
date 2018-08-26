@@ -148,19 +148,19 @@ func (query *Query) ErrorPush(err error, msg ...interface{}) {
 // Return the error stack in a format suitable for printing or machine parsing
 func (query *Query) ErrorStack() (logText, errorStack, earliestStackTrace string) {
 	var est errors.StackTrace
-	var errors string
+	var errs string
 	e := query.Error
 	for {
-		if len(errors) > 0 {
-			errors += "\n"
+		if len(errs) > 0 {
+			errs += "\n"
 		}
 		if st, ok := e.(interface{StackTrace() errors.StackTrace}); ok {
 			est = st.StackTrace()
-			errors += "*"
+			errs += "*"
 		} else {
-			errors += " "
+			errs += " "
 		}
-		errors += e.Error()
+		errs += e.Error()
 		if c, ok := e.(interface{Cause() error}); ok {
 			if e = c.Cause(); e != nil {
 				continue
@@ -175,7 +175,7 @@ func (query *Query) ErrorStack() (logText, errorStack, earliestStackTrace string
 		}
 		estText += fmt.Sprintf("%s:%d %n", f, f, f)
 	}
-	return query.LogText, errors, estText
+	return query.LogText, errs, estText
 }
 
 // Return the error stack in a format ready for direct printing, even from a log.Logger
