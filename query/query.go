@@ -71,7 +71,7 @@ func (query *Query) ErrorCause() error {
 	cause := query.Error
 	if cause != nil {
 		for {
-			if c, ok := cause.(errors.Causer); ok {
+			if c, ok := cause.(interface{Cause() error}); ok {
 				if prev := c.Cause(); prev != nil {
 					cause = prev
 					continue
@@ -159,7 +159,7 @@ func (query *Query) ErrorStack() (logText, errorStack, earliestStackTrace string
 			errors += " "
 		}
 		errors += e.Error()
-		if c, ok := e.(errors.Causer); ok {
+		if c, ok := e.(interface{Cause() error}); ok {
 			if e = c.Cause(); e != nil {
 				continue
 			}
