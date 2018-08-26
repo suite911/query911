@@ -211,8 +211,7 @@ func (query *Query) LogErrors() error {
 
 // Log the accumulated log text to the logger now
 func (query *Query) LogNow() {
-	s := query.ErrorString()
-	if len(s) > 0 {
+	if s := query.ErrorString(); len(s) > 0 {
 		query.logPrintln(s)
 	}
 }
