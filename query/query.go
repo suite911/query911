@@ -232,7 +232,7 @@ func (query *Query) NextOrClose() (hasNext bool) {
 
 // Whether (false) or not (true) there was an error
 func (query *Query) OK() bool {
-	return len(query.Errors) < 1
+	return query.Error == nil
 }
 
 // Log the accumulated log text to the logger now if there was an error and panic if so
@@ -297,7 +297,7 @@ func (query *Query) logMethod(method string, err error) {
 	if err != nil || query.verbose() {
 		wasOK := query.OK()
 		if err != nil {
-			query.Errors = append(query.Errors, err)
+			query.ErrorPush(err, method)
 		}
 		if len(query.LogText) > 0 {
 			query.LogText += "\n"
