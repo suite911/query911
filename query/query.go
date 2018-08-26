@@ -2,10 +2,10 @@ package query
 
 import (
 	"database/sql"
-	"errors"
 	"log"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 )
 
 var Logger *log.Logger
@@ -13,6 +13,7 @@ var Verbose bool
 
 type Query struct {
 	Result     sql.Result
+	Error      error
 	Errors     []error
 	SQL        string
 	LogText    string
@@ -48,6 +49,7 @@ func (query *Query) Begin() {
 
 // Clear the errors and accumulated log text
 func (query *Query) ClearErrors() {
+	query.Error = nil
 	query.Errors = query.Errors[0:0]
 	query.LogText = query.LogText[0:0]
 }
@@ -70,6 +72,49 @@ func (query *Query) CommitOrRollback() (ok bool) {
 		query.logMethod("Tx.Rollback", query.Tx.Rollback())
 		return false
 	}
+}
+
+// Clear the error stack
+func (query *Query) ErrorClear() {
+	query.Error = nil
+}
+
+// Push an error onto the error stack, assuming it was caused by previous errors, if present
+func (query *Query) ErrorPush(err error, msg ...interface{}) {
+	if err == nil {
+		err = errors.New("(nil error)")
+	}
+	msgs := strings.Replace(strings.Replace(fmt.Sprintf("{%q: %q}",
+		fmt.Sprint(msg), err), `\`, `\\`, -1), "\n", `\n`, -1)
+
+	if cur := query.Error; cur != nil {
+		query.Error = errors.Wrap(cur, msgs)
+	} else {
+		query.Error = errors.Wrap(err, msgs)
+	}
+}
+
+// Return the error stack in a format more suitable for printing
+func (query *Query) ErrorStack() (string, errors.StackTrace) {
+	var earliestStackTrace errors.StackTrace
+	var errors string
+	e := query.Error
+	for {
+		if len(errors) > 0 {
+			errors += "\n"
+		}
+		errors += e.Error()
+		if st, ok := e.(errors.StackTracer); ok {
+			earliestStackTrace = st.StackTrace()
+		}
+		if c, ok := e.(errors.Causer); ok {
+			if e = c.Cause(); e != nil {
+				continue
+			}
+		}
+		break
+	}
+	return errors, earliestStackTrace
 }
 
 // Essentially calls query.Prepare and query.ExecPrepared
