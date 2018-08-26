@@ -66,10 +66,51 @@ func (query *Query) CommitOrRollback() (ok bool) {
 	}
 }
 
+// Get the first error, which is assumed to have caused the others
+func (query *Query) ErrorCause() error {
+	cause := query.Error
+	if cause != nil {
+		for {
+			if c, ok := cause.(errors.Causer); ok {
+				if prev := c.Cause(); prev != nil {
+					cause = prev
+					continue
+				}
+			}
+			break
+		}
+	}
+	return cause
+}
+
 // Clear the error stack and accumulated log text
 func (query *Query) ErrorClear() {
 	query.Error = nil
 	query.LogText = query.LogText[:0]
+}
+
+// Get the error message in a format suitable for use with the Discord API
+// It probably looks ok on the console too
+func (query *Query) ErrorDiscordMessage() string {
+	var text string
+	if query.OK() {
+		return text
+	}
+	text := "SQL `QueryError`:\n```sql\n"
+	text += query.SQL
+	text += "\u200b\n```"
+	errmsg := query.ErrorCause().Error()
+	if len(errmsg) > 0 {
+		text += "\nError: \""
+		text += errmsg
+		text += "\""
+	}
+	if len(query.LogText) > 0 {
+		text += "\nLog:\n```go"
+		text += query.LogText
+		text += "\u200b\n```"
+	}
+	return text
 }
 
 // Push an error onto the error stack, assuming it was caused by previous errors, if present
@@ -156,29 +197,6 @@ func (query *Query) ExecPrepared(args ...interface{}) {
 		query.Result, err = query.Stmt.Exec(args...)
 		query.logMethod("Stmt.Exec", err)
 	}
-}
-
-// Get the error message in a format suitable for use with the Discord API
-// It probably looks good on the console too
-func (query *Query) GetErrorDiscord() error {
-	if query.OK() {
-		return nil
-	}
-	text := "SQL `QueryError`:\n```sql\n"
-	text += query.SQL
-	text += "\u200b\n```"
-	errmsg := query.LastError().Error()
-	if len(errmsg) > 0 {
-		text += "\nError: \""
-		text += errmsg
-		text += "\""
-	}
-	if len(query.LogText) > 0 {
-		text += "\nLog:\n```go"
-		text += query.LogText
-		text += "\u200b\n```"
-	}
-	return errors.New(text)
 }
 
 // Log the accumulated log text to the logger now if there was an error and return the error
