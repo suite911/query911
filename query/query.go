@@ -14,7 +14,6 @@ var Verbose bool
 type Query struct {
 	Result     sql.Result
 	Error      error
-	Errors     []error
 	SQL        string
 	LogText    string
 	Logger     *log.Logger
@@ -47,13 +46,6 @@ func (query *Query) Begin() {
 	}
 }
 
-// Clear the errors and accumulated log text
-func (query *Query) ClearErrors() {
-	query.Error = nil
-	query.Errors = query.Errors[0:0]
-	query.LogText = query.LogText[0:0]
-}
-
 // Close query.Rows if open; a no-op otherwise
 func (query *Query) Close() {
 	if query.isOpen {
@@ -74,9 +66,10 @@ func (query *Query) CommitOrRollback() (ok bool) {
 	}
 }
 
-// Clear the error stack
+// Clear the error stack and accumulated log text
 func (query *Query) ErrorClear() {
 	query.Error = nil
+	query.LogText = query.LogText[:0]
 }
 
 // Push an error onto the error stack, assuming it was caused by previous errors, if present
