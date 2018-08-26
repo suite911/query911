@@ -113,6 +113,21 @@ func (query *Query) ErrorDiscordMessage() string {
 	return text
 }
 
+// Log the accumulated log text to the logger now if there was an error, then return the error
+func (query *Query) ErrorLogNow() error {
+	if s := query.ErrorString(); len(s) > 0 {
+		query.logPrintln(s)
+	}
+	return query.Error
+}
+
+// Log the accumulated log text to the logger now if there was an error, then panic if so
+func (query *Query) ErrorPanicNow() {
+	if e := query.ErrorLogNow(); e != nil {
+		panic(e)
+	}
+}
+
 // Push an error onto the error stack, assuming it was caused by previous errors, if present
 func (query *Query) ErrorPush(err error, msg ...interface{}) {
 	if err == nil {
@@ -199,23 +214,6 @@ func (query *Query) ExecPrepared(args ...interface{}) {
 	}
 }
 
-// Log the accumulated log text to the logger now if there was an error and return the error
-// Example: if nil != query.LogErrors() { return }
-func (query *Query) LogErrors() error {
-	err := query.LastError()
-	if err != nil {
-		query.LogNow()
-	}
-	return err
-}
-
-// Log the accumulated log text to the logger now
-func (query *Query) LogNow() {
-	if s := query.ErrorString(); len(s) > 0 {
-		query.logPrintln(s)
-	}
-}
-
 // Calls query.Rows.Next and returns if there are any more rows
 func (query *Query) NextKeepOpen() (hasNext bool) {
 	return query.OK() && query.Rows.Next()
@@ -233,16 +231,6 @@ func (query *Query) NextOrClose() (hasNext bool) {
 // Whether (false) or not (true) there was an error
 func (query *Query) OK() bool {
 	return query.Error == nil
-}
-
-// Log the accumulated log text to the logger now if there was an error and panic if so
-// Example: query.PanicErrors()
-func (query *Query) PanicErrors() {
-	err := query.LastError()
-	if err != nil {
-		query.LogNow()
-		panic(err)
-	}
 }
 
 // For use with query.ExecPrepared or query.QueryPrepared
