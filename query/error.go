@@ -1,5 +1,7 @@
 package query
 
+import "github.com/suite911/error911"
+
 type Error struct {
 	error911.E911Impl
 }
