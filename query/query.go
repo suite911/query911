@@ -4,10 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 )
 
 var Logger *log.Logger
