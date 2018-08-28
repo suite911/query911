@@ -112,12 +112,12 @@ func (query *Query) LogNow() error {
 	return err
 }
 
-// Like `LogNow`, but open any errors in a browser window
-func (query *Query) LogNowDebug() error {
+// Like `LogNow`, but open any errors in a browser window for easy debugging
+func (query *Query) LogNowBrowser() error {
 	err := query.Error
 	if err != nil {
 		query.loggerPrintln(err.ErrorText())
-		browser.OpenReader(strings.NewReader("<!DOCTYPE html><html><body>"+err.ErrorHTML()+"</body></html>"))
+		err.ErrorBrowser()
 	}
 	return err
 }
