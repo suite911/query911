@@ -15,7 +15,7 @@ var Verbose bool
 
 type Query struct {
 	Result     sql.Result
-	Error      error
+	Error      Error
 	SQL        string
 	LogText    string
 	Logger     *log.Logger
@@ -44,7 +44,7 @@ func (query *Query) Begin() {
 	if query.OK() {
 		var err error
 		query.Tx, err = query.DB.Begin()
-		query.logMethod("DB.Begin", err)
+		query.LogMethodCall("DB.Begin", err)
 	}
 }
 
@@ -52,7 +52,7 @@ func (query *Query) Begin() {
 func (query *Query) Close() {
 	if query.isOpen {
 		query.isOpen = false
-		query.logMethod("Rows.Close", query.Rows.Close())
+		query.LogMethodCall("Rows.Close", query.Rows.Close())
 	}
 }
 
@@ -60,144 +60,12 @@ func (query *Query) Close() {
 func (query *Query) CommitOrRollback() (ok bool) {
 	if query.OK() && query.okToCommit {
 		err := query.Tx.Commit()
-		query.logMethod("Tx.Commit", err)
+		query.LogMethodCall("Tx.Commit", err)
 		return err == nil
 	} else {
-		query.logMethod("Tx.Rollback", query.Tx.Rollback())
+		query.LogMethodCall("Tx.Rollback", query.Tx.Rollback())
 		return false
 	}
-}
-
-// Get the first error, which is assumed to have caused the others
-func (query *Query) ErrorCause() error {
-	cause := query.Error
-	if cause != nil {
-		for {
-			if c, ok := cause.(interface{Cause() error}); ok {
-				if prev := c.Cause(); prev != nil {
-					cause = prev
-					continue
-				}
-			}
-			break
-		}
-	}
-	return cause
-}
-
-// Clear the error stack and accumulated log text
-func (query *Query) ErrorClear() {
-	query.Error = nil
-	query.LogText = query.LogText[:0]
-}
-
-// Get the error message in a format suitable for use with the Discord API
-// It probably looks ok on the console too
-func (query *Query) ErrorDiscordMessage() string {
-	var text string
-	if query.OK() {
-		return text
-	}
-	text = "SQL `QueryError`:\n```sql\n"
-	text += query.SQL
-	text += "\u200b\n```"
-	errmsg := query.ErrorCause().Error()
-	if len(errmsg) > 0 {
-		text += "\nError: \""
-		text += errmsg
-		text += "\""
-	}
-	if len(query.LogText) > 0 {
-		text += "\nLog:\n```go"
-		text += query.LogText
-		text += "\u200b\n```"
-	}
-	return text
-}
-
-// Log the accumulated log text to the logger now if there was an error, then return the error
-func (query *Query) ErrorLogNow() error {
-	if s := query.ErrorString(); len(s) > 0 {
-		query.logPrintln(s)
-	}
-	return query.Error
-}
-
-// Log the accumulated log text to the logger now if there was an error, then panic if so
-func (query *Query) ErrorPanicNow() {
-	if e := query.ErrorLogNow(); e != nil {
-		panic(e)
-	}
-}
-
-// Push an error onto the error stack, assuming it was caused by previous errors, if present
-func (query *Query) ErrorPush(err error, msg ...interface{}) {
-	if err == nil {
-		err = errors.New("(nil error)")
-	}
-	msgs := strings.Replace(strings.Replace(fmt.Sprintf("{%q: %q}",
-		fmt.Sprint(msg), err), `\`, `\\`, -1), "\n", `\n`, -1)
-
-	if cur := query.Error; cur != nil {
-		query.Error = errors.Wrap(cur, msgs)
-	} else {
-		query.Error = errors.Wrap(err, msgs)
-	}
-}
-
-// Return the error stack in a format suitable for printing or machine parsing
-func (query *Query) ErrorStack() (logText, errorStack, earliestStackTrace string) {
-	var est errors.StackTrace
-	var errs string
-	e := query.Error
-	for {
-		if len(errs) > 0 {
-			errs += "\n"
-		}
-		if st, ok := e.(interface{StackTrace() errors.StackTrace}); ok {
-			est = st.StackTrace()
-			errs += "*"
-		} else {
-			errs += " "
-		}
-		errs += e.Error()
-		if c, ok := e.(interface{Cause() error}); ok {
-			if e = c.Cause(); e != nil {
-				continue
-			}
-		}
-		break
-	}
-	var estText string
-	for _, f := range est {
-		if len(estText) > 0 {
-			estText += "\n"
-		}
-		estText += fmt.Sprintf("%s:%d %n", f, f, f)
-	}
-	return query.LogText, errs, estText
-}
-
-// Return the error stack in a format ready for direct printing, even from a log.Logger
-func (query *Query) ErrorString() string {
-	lt, es, est := query.ErrorStack()
-	result := "Query Error"
-	if len(lt) > 0 {
-		result += "\n=== LOG TEXT ===\n"
-		result += lt
-		result += "\n... LOG TEXT ..."
-	}
-	if len(es) > 0 {
-		result += "\n=== ERROR STACK ===\n"
-		result += es
-		result += "\n... ERROR STACK ..."
-	}
-	if len(est) > 0 {
-		result += "\n=== EARLIEST STACK TRACE ===\n"
-		result += est
-		result += "\n... EARLIEST STACK TRACE ..."
-	}
-	return result
 }
 
 // Essentially calls query.Prepare and query.ExecPrepared
@@ -213,8 +81,50 @@ func (query *Query) ExecPrepared(args ...interface{}) {
 	if query.OK() {
 		var err error
 		query.Result, err = query.Stmt.Exec(args...)
-		query.logMethod("Stmt.Exec", err)
+		query.LogMethodCall("Stmt.Exec", err)
 	}
+}
+
+// Exposed publically but generally only used internally to log internal method calls.
+func (query *Query) LogMethodCall(method string, err error) {
+	if err != nil || query.verbose() {
+		wasOK := query.OK()
+		if err != nil {
+			query.Error.Push(method + ":", err)
+		}
+		comment := " // ok"
+		if err != nil {
+			comment = fmt.Sprint(" // error: %q", err)
+		}
+		if wasOK {
+			comment += " // stored"
+		}
+		query.Error.Log("go", method + comment)
+	}
+}
+
+// Log any errors to the logger now and return `Error` as an `error`
+func (query *Query) LogNow() error {
+	err := query.Error
+	if err != nil {
+		query.loggerPrintln(err.ErrorText())
+	}
+	return err
+}
+
+// Like `LogNow`, but open any errors in a browser window
+func (query *Query) LogNowDebug() error {
+	err := query.Error
+	if err != nil {
+		query.loggerPrintln(err.ErrorText())
+		browser.OpenReader(strings.NewReader("<!DOCTYPE html><html><body>"+err.ErrorHTML()+"</body></html>"))
+	}
+	return err
+}
+
+// Exposed publically but generally only used internally to log SQL code.
+func (query *Query) LogSQL() {
+	query.Error.Log("sql", "SQL code:", query.SQL)
 }
 
 // Calls query.Rows.Next and returns if there are any more rows
@@ -239,14 +149,14 @@ func (query *Query) OK() bool {
 // For use with query.ExecPrepared or query.QueryPrepared
 func (query *Query) Prepare() {
 	if query.OK() {
-		query.logSQL()
+		query.LogSQL()
 		var err error
 		if query.Tx != nil {
 			query.Stmt, err = query.Tx.Prepare(query.SQL)
-			query.logMethod("Tx.Prepare", err)
+			query.LogMethodCall("Tx.Prepare", err)
 		} else {
 			query.Stmt, err = query.DB.Prepare(query.SQL)
-			query.logMethod("DB.Prepare", err)
+			query.LogMethodCall("DB.Prepare", err)
 		}
 	}
 }
@@ -264,7 +174,7 @@ func (query *Query) QueryPrepared(args ...interface{}) {
 	if query.OK() {
 		var err error
 		query.Rows, err = query.Stmt.Query(args...)
-		query.logMethod("Stmt.Query", err)
+		query.LogMethodCall("Stmt.Query", err)
 		query.isOpen = query.OK()
 	}
 }
@@ -272,7 +182,7 @@ func (query *Query) QueryPrepared(args ...interface{}) {
 // Calls query.Rows.Scan and then query.Rows.Close
 func (query *Query) ScanClose(args ...interface{}) {
 	if query.OK() {
-		query.logMethod("Rows.Scan", query.Rows.Scan(args...))
+		query.LogMethodCall("Rows.Scan", query.Rows.Scan(args...))
 		query.Close()
 	}
 }
@@ -280,36 +190,11 @@ func (query *Query) ScanClose(args ...interface{}) {
 // Like query.ScanKeepOpen, but does not call query.Rows.Close afterward
 func (query *Query) ScanKeepOpen(args ...interface{}) {
 	if query.OK() {
-		query.logMethod("Rows.Scan", query.Rows.Scan(args...))
+		query.LogMethodCall("Rows.Scan", query.Rows.Scan(args...))
 	}
 }
 
-func (query *Query) logMethod(method string, err error) {
-	if err != nil || query.verbose() {
-		wasOK := query.OK()
-		if err != nil {
-			query.ErrorPush(err, method)
-		}
-		if len(query.LogText) > 0 {
-			query.LogText += "\n"
-		}
-		query.LogText += "query."
-		query.LogText += method
-		query.LogText += "() // "
-		if err == nil {
-			query.LogText += "ok"
-		} else {
-			query.LogText += "error: \""
-			query.LogText += err.Error()
-			query.LogText += "\""
-		}
-		if wasOK {
-			query.LogText += " // stored"
-		}
-	}
-}
-
-func (query *Query) logPrintln(args ...interface{}) {
+func (query *Query) loggerPrintln(args ...interface{}) {
 	switch {
 	case query.Logger != nil:
 		query.Logger.Println(args...)
@@ -318,12 +203,6 @@ func (query *Query) logPrintln(args ...interface{}) {
 	default:
 		log.Println(args...)
 	}
-}
-
-func (query *Query) logSQL() {
-	query.LogText += "\u200b\n```\nSQL set to:\n```sql\n"
-	query.LogText += query.SQL
-	query.LogText += "\u200b\n```\n```go"
 }
 
 func (query *Query) verbose() bool {
