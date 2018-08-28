@@ -13,7 +13,7 @@ var Verbose bool
 
 type Query struct {
 	Result     sql.Result
-	Error      Error
+	Error      *Error
 	SQL        string
 	LogText    string
 	Logger     *log.Logger
