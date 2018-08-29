@@ -90,7 +90,7 @@ func (query *Query) LogMethodCall(method string, err error) {
 	if err != nil || query.verbose() {
 		wasOK := query.OK()
 		if err != nil {
-			query.Error = query.Error.Push(query.Logs.Title(), err, method)
+			query.Error = query.Error.Push(query.Title(), err, method)
 		}
 		comment := " // ok"
 		if err != nil {
@@ -107,7 +107,7 @@ func (query *Query) LogMethodCall(method string, err error) {
 func (query *Query) LogNow() error {
 	err := query.Error
 	if err != nil {
-		query.loggerPrintln(query.Logs.ErrorText())
+		query.loggerPrintln(query.ErrorText())
 	}
 	return err
 }
@@ -116,8 +116,8 @@ func (query *Query) LogNow() error {
 func (query *Query) LogNowBrowser() error {
 	err := query.Error
 	if err != nil {
-		query.loggerPrintln(query.Logs.ErrorText())
-		query.Logs.ErrorBrowser()
+		query.loggerPrintln(query.ErrorText())
+		query.ErrorBrowser()
 	}
 	return err
 }
