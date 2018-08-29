@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/suite911/error911"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
