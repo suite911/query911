@@ -14,7 +14,7 @@ func NewError(title string, cause error, msg ...interface{}) *Error {
 
 func (err *Error) Init(title string, cause error, msg ...interface{}) *Error {
 	if err == nil {
-		return New(title, cause, msg...)
+		return NewError(title, cause, msg...)
 	}
 	err.Embed.Init(title, cause, msg...)
 	return err
@@ -22,7 +22,7 @@ func (err *Error) Init(title string, cause error, msg ...interface{}) *Error {
 
 func (err *Error) Push(title string, immediateCause error, msg ...interface{}) *Error {
 	if err == nil {
-		return New(title, immediateCause, msg...)
+		return NewError(title, immediateCause, msg...)
 	}
 	err.Embed.Push(title, immediateCause, msg...)
 	return err
