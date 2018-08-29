@@ -1,20 +1,29 @@
 package query
 
-import "github.com/suite911/error911"
+import "github.com/suite911/error911/impl"
 
-type Error *error911.SError;
-
-func New(title string, cause error, msg ...interface{}) Error {
-	return error911.ImplNew(title, cause, msg...)
+type Error struct {
+	impl.Embed
 }
 
-func (err Error) Init(title string, cause error, msg ...interface{}) Error {
-	return error911.ImplInit(err, title, cause, msg...)
+func New(title string, cause error, msg ...interface{}) *Error {
+	err := new(Error)
+	err.Init(title, cause, msg...)
+	return err
 }
 
-func (err Error) New(title string, cause error, msg ...interface{}) Error {
-	return error911.ImplNewMethod(err, title, cause, msg...)
+func (err *Error) Init(title string, cause error, msg ...interface{}) *Error {
+	if err == nil {
+		return New(title, cause, msg...)
+	}
+	err.Embed.Init(title, cause, msg...)
+	return err
 }
-func (err *Error) Push(title string, cause error, msg ...interface{}) {
-	error911.ImplPush(err, title, cause, msg...)
+
+func (err *Error) Push(title string, immediateCause error, msg ...interface{}) *Error {
+	if err == nil {
+		return New(title, cause, msg...)
+	}
+	err.Embed.Push(title, cause, msg...)
+	return err
 }
