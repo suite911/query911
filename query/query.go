@@ -13,7 +13,7 @@ var Verbose bool
 
 type Query struct {
 	Error
-	error911.FullLog
+	error911.Logs
 	Result     sql.Result
 	SQL        string
 	Logger     *log.Logger
@@ -33,7 +33,7 @@ func New(db *sql.DB) *Query {
 
 // Initialize your own Query
 func (q *Query) Init(db *sql.DB) *Query {
-	q.FullLog.Init("Query Error", &q.Error)
+	q.Logs.Init("Query Error", &q.Error)
 	q.DB = db
 	return q
 }
