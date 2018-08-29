@@ -12,10 +12,10 @@ var Logger *log.Logger
 var Verbose bool
 
 type Query struct {
+	Error
+	error911.FullLog
 	Result     sql.Result
-	Error      *Error
 	SQL        string
-	LogText    string
 	Logger     *log.Logger
 	DB         *sql.DB
 	Tx         *sql.Tx
@@ -33,6 +33,7 @@ func New(db *sql.DB) *Query {
 
 // Initialize your own Query
 func (q *Query) Init(db *sql.DB) *Query {
+	q.FullLog.Init("Query Error", &q.Error)
 	q.DB = db
 	return q
 }
@@ -66,6 +67,10 @@ func (query *Query) CommitOrRollback() (ok bool) {
 	}
 }
 
+func (query *Query) Error() error {
+	return query.E911.
+}
+
 // Essentially calls query.Prepare and query.ExecPrepared
 func (query *Query) Exec(args ...interface{}) {
 	if query.OK() {
@@ -97,7 +102,7 @@ func (query *Query) LogMethodCall(method string, err error) {
 		if wasOK {
 			comment += " // stored"
 		}
-		query.Error.Log("go", method + comment)
+		query.Log("go", method + comment)
 	}
 }
 
@@ -122,7 +127,7 @@ func (query *Query) LogNowBrowser() error {
 
 // Exposed publically but generally only used internally to log SQL code.
 func (query *Query) LogSQL() {
-	query.Error.Log("sql", "SQL code:", query.SQL)
+	query.Log("sql", "SQL code:", query.SQL)
 }
 
 // Calls query.Rows.Next and returns if there are any more rows
