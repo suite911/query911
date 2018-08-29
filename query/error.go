@@ -3,7 +3,7 @@ package query
 import "github.com/suite911/error911"
 
 type Error struct {
-	error911.E911Impl
+	error911.Error
 }
 
 func NewError() *Error {
@@ -11,6 +11,5 @@ func NewError() *Error {
 }
 
 func (e *Error) Init() *Error {
-	e.E911Impl.Init("Query Error")
 	return e
 }
