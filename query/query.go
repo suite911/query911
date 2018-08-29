@@ -107,7 +107,7 @@ func (query *Query) LogMethodCall(method string, err error) {
 func (query *Query) LogNow() error {
 	err := query.Error
 	if err != nil {
-		query.loggerPrintln(err.ErrorText())
+		query.loggerPrintln(query.Logs.ErrorText())
 	}
 	return err
 }
@@ -116,7 +116,7 @@ func (query *Query) LogNow() error {
 func (query *Query) LogNowBrowser() error {
 	err := query.Error
 	if err != nil {
-		query.loggerPrintln(err.ErrorText())
+		query.loggerPrintln(query.Logs.ErrorText())
 		err.ErrorBrowser()
 	}
 	return err
