@@ -14,7 +14,6 @@ var Logger *log.Logger
 var Verbose bool
 
 type Query struct {
-	*Error
 	error911.Logs
 	Result     sql.Result
 	SQL        string
@@ -35,7 +34,7 @@ func New(db *sql.DB) *Query {
 
 // Initialize your own Query
 func (q *Query) Init(db *sql.DB) *Query {
-	q.Logs.Init("Query Error", &q.Error)
+	q.Logs.Init("Query Error")
 	q.DB = db
 	return q
 }
@@ -91,7 +90,7 @@ func (query *Query) LogMethodCall(method string, err error) {
 	if err != nil || query.verbose() {
 		wasOK := query.OK()
 		if err != nil {
-			query.Error.Push(method + ":", err)
+			query.Error = query.Error.Push(query.Logs.Title(), err, method)
 		}
 		comment := " // ok"
 		if err != nil {
