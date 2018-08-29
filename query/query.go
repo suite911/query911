@@ -14,7 +14,7 @@ var Logger *log.Logger
 var Verbose bool
 
 type Query struct {
-	Error
+	*Error
 	error911.Logs
 	Result     sql.Result
 	SQL        string
@@ -67,10 +67,6 @@ func (query *Query) CommitOrRollback() (ok bool) {
 		query.LogMethodCall("Tx.Rollback", query.Tx.Rollback())
 		return false
 	}
-}
-
-func (query *Query) Error() error {
-	return query.E911.
 }
 
 // Essentially calls query.Prepare and query.ExecPrepared
