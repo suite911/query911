@@ -22,8 +22,8 @@ func (err *Error) Init(title string, cause error, msg ...interface{}) *Error {
 
 func (err *Error) Push(title string, immediateCause error, msg ...interface{}) *Error {
 	if err == nil {
-		return New(title, cause, msg...)
+		return New(title, immediateCause, msg...)
 	}
-	err.Embed.Push(title, cause, msg...)
+	err.Embed.Push(title, immediateCause, msg...)
 	return err
 }
