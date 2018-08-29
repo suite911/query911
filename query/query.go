@@ -117,7 +117,7 @@ func (query *Query) LogNowBrowser() error {
 	err := query.Error
 	if err != nil {
 		query.loggerPrintln(query.Logs.ErrorText())
-		err.ErrorBrowser()
+		query.Logs.ErrorBrowser()
 	}
 	return err
 }
