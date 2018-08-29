@@ -6,7 +6,7 @@ type Error struct {
 	impl.Embed
 }
 
-func New(title string, cause error, msg ...interface{}) *Error {
+func NewError(title string, cause error, msg ...interface{}) *Error {
 	err := new(Error)
 	err.Init(title, cause, msg...)
 	return err
