@@ -14,7 +14,7 @@ var Logger *log.Logger
 var Verbose bool
 
 type Query struct {
-	Error
+	*Error
 	error911.Logs
 	Result     sql.Result
 	SQL        string
